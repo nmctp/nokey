@@ -1,0 +1,177 @@
+.\" Copyright (C) 2008 Pedro Fortuny and Rafael Casado
+.\" This file is part of nokey. 
+.\" See the file COPYING for information on usage and redistribution
+.\" of this file, and for a DISCLAIMER OF ALL WARRANTIES
+
+.TH NOKEY 1 "October 2008" "Version 1.0" "Authentication"
+.SH NAME
+nokey \- safe autentication using Shamir's no key protocol
+.SH SYNOPSIS
+
+.nf
+.B nokey [\fIoptions\fP] [\fIfile\fP] [\fInumber\fP]
+.fi
+.SH DESCRIPTION
+
+\fBnokey\fP is a utility for providing secure authentication through
+an insecure channel using Shamir's no key (or three-pass) protocol
+over the group of units Z/p (p being a \fIlarge\fP prime number, designated
+from now on as the \fImodulus\fP).
+
+The advantages of the three-pass protocol for authentication are mainly
+two: that passwords are not sent in the clear over the communication
+channel and that it needs no certificates or the overload of Public
+Key Infrastructure (the authentication server might as well fix a new
+modulus for each authentication attempt, though this would be very
+resource-intensive).
+
+Moreover, many of the Web 2.0 services, such as blogs, chat services,
+and wikis require \fIonly secure authentication\fP (in other words,
+that the login/password pair is only known to the owner) because
+virtually all of their content is made public.
+
+Users of webmail servers may also be eager to trade non-privacy of
+their mail (letting it go through the web on the clear) for secure
+authentication (safe encryption of the login protocol). Actually, they
+are trading for nothing nowadays in most cases.
+
+.SH THE PROTOCOL
+
+Shamir's no key protocol with modulus \fIp\fP works as follows (assume
+the key -password- is a integer number \fIk\fP between 2 and p-1):
+.TP 15
+.B init
+The authentication \fIserver\fP provides the \fIclient\fP with the modulus
+\fIp\fP
+.TP 
+.B encryption 1
+The \fIclient\fP chooses a random number \fIu1\fP, which is a unit
+modulo \fIp-1\fP and computes \fIq1\fP = k^u1 mod(p) [k to the power
+u1 modulo p]. The client sends \fIq1\fP to the server.
+.TP
+.B encryption 2
+The \fIserver\fP chooses another random unit \fIu2\fP modulo \fIp-1\fP,
+and computes \fIq2\fP = q1^u2 mod(p), sending this back to the client.
+.TP
+.B decryption 1
+The \fIclient\fP computes \fIv1\fP = 1/u1 mod(p-1) (the inverse of u1
+modulo p-1) and sends \fIq3\fP = q2^v1 mod(p) to the server.
+.TP
+.B decryption 2
+Finally, the \fIserver\fP computes \fIv2\fP = 1/u2 mod(p-1) and
+\fIq4\fP = q3^v2 mod(p). By Fermat's little theorem, one has
+\fIq4\fP = k mod(p), and the server can now verify the password
+against its database.
+.PD
+
+.LP
+
+The command \fIno_key_server\fP runs the server-side of the protocol. 
+The client side has to be implemented specifically (although the source code includes
+a test client for convenience). As the algorithm requires keeping track of
+the modulus (unless it is stored in a configuration file) and of the
+unit \fIu2\fP, the server behaves differently depending on the number
+of parameters it receives:
+
+.TP 15
+.B (no params)
+When called with no parameters, \fBnokey\fP assumes the client is 
+initiating the communication, and sends
+back a filename (without path) and the modulus (either computing it or 
+reading it from a configuration file), separated by a space. The filename
+is used as a 'session-tracking' mechanism.
+.TP
+.B no_key_server \fIfile\fP \fIq1\fP
+If \fBnokey\fP is called with exactly two parameters, the first one is
+assumed to be a filename (the session tracking file) without leading
+path (the session directory is known by the server) and the second is
+the number \fIq1\fP (as described above in \fBencryption 1\fP). The
+server returns a string composed of the same filename and the number
+\fIq2\fP separated by a space.
+.TP
+.B no_key_server \fIfile\fP \fIq3\fP \fI1\fP
+When called with exactly three parameters (the last '1' may be anything), 
+\fBnokey\fP performs the \fBdecryption 2\fP
+step and returns the number \fIq4\fP in binary form.
+.LP
+After all these steps, if the cilent has sent \fIq1\fP and \fIq3\fP properly,
+the last output coincides with the 'password' (modulo p). If the password \fBk\fP
+is, as a number, less than p, then \fBq4 = k\fP.
+
+The size of p, by default, is 512 bits. This allows for 512/8=64 bit-long
+passwords, which "\fBought to be sufficient\fP" for most practical purposes.
+
+
+.SH OPTIONS
+
+\fBno_key_server\fP supports the following options:
+
+.TP 15
+.B -c \fIfilename\fP
+Specify a different modulus file \fIfilename\fP. If it does not
+exisit, then \fBnokey\fP will compute a new modulus and \fItry\fP to
+store it at \fIfilename\fP (for later use), but will not complain or
+fail if it cannot write to that file. Default: \fI/etc/nokey.mod\fP.
+.TP
+.B -t \fIdir\fP
+Use a \fIdir\fP to store temporary files. Default: \fI/tmp\fP.
+.TP
+.B -p \fInumber\fP
+Use \fInumber\fP as the modulus, instead of reading it from a file
+or computing it. In this case, \fInumber\fP must be the hexadecimal expression
+of a prime number. \fInokey\fP makes a fast check
+about its primality, but \fIit mostly trusts the user\fP.
+.TP
+.B -s
+Run as a TCP server. This is still undocumented.
+.TP
+.B -P \fIport\fP
+Use port \fIport\fP to listen on, when running as a server with the
+\fB-s\fP option, otherwise useless.
+.SH NOTES ON USAGE
+.SH SECURITY
+
+The security of \fBnokey\fP relies on the difficulty of the discrete-
+logarithm problem, which up to date is assumed enough for the same
+sizes as RSA keys (that is, about 2048 bits in 2008). For most practical
+purposes, though, a key size of 1024 should be enough.
+
+There are two steps at which a random integer (modulo p) needs to be
+generated. On the server side, this is done using OpenSSL's big number
+random generator BN_rand, which "generates a cryptographically strong 
+pseudo-random number" (see man 3 BN_rand). On the client side, each 
+implementation should take care of this, as knowledge of the exponents 
+voids the logarithm problem.
+
+.SH EXIT STATUS
+
+The exit status is 0 on successful completion and non-zero otherwise.
+
+.SH BUGS
+
+There are no known bugs up to date.
+
+.SH VERSION
+
+1.0
+
+.SH AUTHORS
+
+Pedro Fortuny Ayuso <info at pfortuny.net>
+Rafael Casado Sanchez <rafacas at gmail.com>
+
+.SH COPYRIGHT
+
+Copyright (C) 2008 Pedro Fortuny Ayuso and Rafael Casado Sanchez
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHORS DISCLAIM ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL ANY OF THE AUTHORS BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.

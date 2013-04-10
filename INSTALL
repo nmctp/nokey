@@ -1,0 +1,84 @@
+INSTALL
+=======
+
+There are two steps to follow in order to install no_key
+for securing your web application:
+
+a) building the server
+b) installing the new safe 'login' in your webapp
+
+
+a) Building no_key_server
+-------------------------
+
+1. Download the latest tgz version of no_key from Sourceforge:
+http://sourceforge.net/projects/nmctp/files/nokey
+
+2. Decompress the downloaded tarball:
+$ tar xzvf nokey-<VERSION>.tgz
+
+3. Get into the newly created directory:
+$ cd nokey-<VERSION>
+
+4. If you do not have write permission in /etc you need to change the NO_KEY_CONF_FILE
+constant in the no_key.h file:
+#define NO_KEY_CONF_FILE "/etc/no_key.mod"
+to a directory with write permission like
+#define NO_KEY_CONF_FILE /my/new/path/to/store/no_key.mod
+it needs not be a read-only file or any secure path
+
+5. By default, the value of NO_KEY_SIZE constant (in no_key.h) is 1024. You can change
+this value to 256, 512 and 2048. This will be run-time configurable in future versions.
+
+6. Build no_key:
+$ make
+
+If the make succeeds, two executable no_key_server and no_key_client will have been built.
+
+7. To test no_key_server run:
+$ make test
+./no_key_client 'Teh password!'
+K: : [546568207061737377726F6421]
+p: : [EF4FBB72BD78ADC40481DC3D879253989433046B463B40ACF558580254E413A594205A12A704CFC6D9
+1B2362B203A9510C130F384457617191C1DD0A1A8B107D8247E37B70CE9E1FE0154C5A9B6655985C8DC76CEC
+B1B5AEC8DABD49F77FBE24D1E7BBB5383FF17A8F8138268332A78F813F43743BC49F5EFE3C0B9A1E48EEDF]
+u1: : [CC10D1DD3DB7850CCFEEEBB1DA256CD0FF0E234C3BE17D0B034187E50BEF39CD05D91A8F6C869D3BC
+DD58CE3715CB40394EFE7A30D089C52FE330C068D6F3F7C116D44E052428435F9721E98990F4202640935530
+1518DA7FDBF4F6B0960E7ABC5484196F2E5EC48E511706B05C95499A8FEA5044183820CC3B14520CD83D033]
+q1: : [1D259D69AE894E6019E0A6B4720CB54CA4543D8593D7C23B0CEC0C13D5C470812121F54AA01D7DE0E
+BDBDD415F50C355BB822D133E6AAEAD90C0C9EC3937771F2BC2EB9AB7EB47CC846DF018B33456F696DB73D18
+BED90674F2AF9AEA4005FCE885B2492503ECABE86D8E87930D17D8667545D2EE97E7D060D2CD26ABF065516]
+q2: : [A741DC21757324578BF00E27A59217683CE0BBE2F6F0037D16BC66BAA22619600C75ABEE2B3BB73AE
+6F5645F7DFFAC91194298A258C34AB94B4BAE4BEC64DBC16A032A8F416BA2066A0CC22D205F881D4F48848C0
+50B068D6679F5A140C10A826CCCDD0BD91BBF8133B78C10C187C40D4160D9D5DA07BD1EE3D182005B9FD0A2]
+q3: : [8A268EA5389BAFE40039ACBCDC6360C405E99F58C36F02A609B1799EB873CE8FB131408BC6DC4AC0C
+5455F01AE5FFECA489E2631043F50C2DB43E183C65EC69772B46BDB087D84D6EAA6B9BE9FA609CBE0AEEAEB6
+C71C4150DC17EC11996BD02528C53A9C350F0DDB2C25EFE2F212BDCD017B94DA39DC861324DA0D994A99C31]
+Key: [Teh password!]
+
+Try ./no_key_client your_password
+
+
+b) Installing the new safe 'login' in your webapp
+-------------------------------------------------
+
+The web directory contains a safe login example:
+
+- nokey-config.php: In this file you need to define the value of NO_KEY_SERVER which is 
+the no_key_server path. Usually it will be '../cgi-bin/no_key_server'.
+
+- nokey.php: This file contains the server side of No Key Shamir's protocol. In this file the
+function 'user_authentication($user, $password)' is called. This function is implemented in 
+the file 'your_app.php'.
+
+To add the safe login to your app you will have to replace this function with yours. The 
+authentication function return true if the password is valid and false otherwise.
+
+- your_app.php: This file pretends the application user authentication. The demo user and password are
+'admin' and 'passw0rd'.
+
+- login.php: This file has a login form (The demo user and password are 'admin' and 'passw0rd'). If the
+user and password are valid, then a session will be created and it will be redirected to index.php
+
+- logout.php: In this file the session is destroyed and the browser is redirected to login.php
+
